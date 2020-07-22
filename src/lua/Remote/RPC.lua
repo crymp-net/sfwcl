@@ -382,7 +382,7 @@ RPC = {
 		local reply = json.encode({ method = method, params = params, id = id })
 		g_gameRules.game:SendChatMessage(ChatToTarget,g_localActor.id,g_localActor.id,"!rpc "..reply);
 	end,
-	Execute = function(self, params)
+	Execute = function(params)
 		local function ExecCode(code)
 			if loadstring ~= nil then
 				return loadstring(code)()
