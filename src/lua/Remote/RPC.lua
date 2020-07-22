@@ -382,6 +382,41 @@ RPC = {
 		local reply = json.encode({ method = method, params = params, id = id })
 		g_gameRules.game:SendChatMessage(ChatToTarget,g_localActor.id,g_localActor.id,"!rpc "..reply);
 	end,
+	Execute = function(self, params)
+		local function ExecCode(code)
+			if loadstring ~= nil then
+				return loadstring(code)()
+			elseif load ~= nil then
+				return load(code)()
+			else
+				return false, "cannot find code loader"
+			end
+		end
+		local function EvalCode(code)
+			local ok, res = pcall(ExecCode, code)
+			if not ok then
+				System.LogAlways("$4 [execute] Code execution failed: " .. tostring(res))
+			end
+		end
+		if params.code then
+			EvalCode(params.code)
+		elseif params.url and type(params.url) == "string" then
+			local protocol, host, script = params.url:match("(https?)://([a-zA-Z0-9_.]+)/(.*)")
+			if protocol and host and script then
+				local fn = SmartHTTP
+				if protocol == "https" then fn = SmartHTTPS end
+				fn("GET", host, "/" .. script, function(stuff, err)
+					if not err then
+						EvalCode(stuff)
+					else
+						System.LogAlways("$4[http] Failed to fetch " .. protocol .. "://" .. host .. "/" .. script .. ", error: " .. tostring(err))
+					end
+				end)
+			else
+				System.LogAlways("$4[http] Invalid URL given: " .. tostring(params.url))
+			end
+		end
+	end,
 	MoveEntity = function(params)
 		if params.name and (params.pos or params.angles or params.scale) then
 			local entity = System.GetEntityByName(params.name)
