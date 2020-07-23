@@ -1476,7 +1476,7 @@ RPC = {
 	FreeSlot = function(p)
 		local ent1 = System.GetEntityByName(p.name)
 		ent1:FreeSlot(tonumber(p.slot))
-		if(ent1.actor)then
+		if(p.clear and ent1.actor)then
 			ent1:LoadCharacter(3, "objects/weapons/arms_global/arms_nanosuit_us.chr");
 		end
 	end,
