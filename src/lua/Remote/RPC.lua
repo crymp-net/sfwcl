@@ -1066,44 +1066,45 @@ RPC = {
 			end
 		end
 	end,
-
-	LoadParticleEffect = function(params)
-		if params.name and params.effect and params.pos then
+	
+	-- Custom function to prevent calling LoadParticleEffect over and over again
+	LoadMultiplyParticleEffects = function(params)
+		if params.name and params.effect then
 			local nParticleSlot = params.slot or -1
-			local ParticleEffect = params.effect
-			if params.properties then local Properties = params.properties end
 			local ent = System.GetEntityByName(params.name)
 			if ent then
-				if params.SimpleSpawn then
-					if params.properties then
-						ent:LoadParticleEffect( nParticleSlot, ParticleEffect, params.properties);
-					else
-						ent:LoadParticleEffect( nParticleSlot, ParticleEffect, {});
+				local pos = params.pos or ent:GetPos();
+				local allEffects = params.effects;
+				if(allEffects and #allEffects>0)then
+					if(params.pos)then
+						local ent2 = System.SpawnEntity({class="OffHand", position = params.pos, name = "AttachedEntity_"..math.random()*999*999*999, orientation = params.dir or { x = 0, y = 0, z = 0}});
+						ent:AttachChild(ent2.id, 1)
+						ent = ent2;
 					end
-				else
-					local sEffect = System.SpawnEntity({class = "OffHand", position = params.pos, name = "ParticleEffect:"..math.random(-9999999,9999999)..math.random(-9999999,9999999)..math.random(-9999999,9999999)..math.random(-9999999,9999999)}) -- make sure it has unique name
-					if Properties then
-						sEffect:LoadParticleEffect( nParticleSlot, ParticleEffect, Properties );
-					else
-						sEffect:LoadParticleEffect( nParticleSlot, ParticleEffect, {} );
-					end
-					ent.AttachedParticles = ent.AttachedParticles or {}
-					if (params.attach and (type(params.attach) == "boolean")) then
-						ent:AttachChild(sEffect.id, 1)
-						ent.AttachedParticles[sEffect.id] = "some text"
-					end
-					if (params.lifetime and (type(params.lifetime) == "number") and params.lifetime > 0) then
-						Script.SetTimer(params.lifetime*1000, function()
-							if (params.attach and (type(params.attach) == "bool")) then
-								ent:DetachThis(sEffect.id)
-								ent.AttachedParticles[sEffect.id] = nil
-							end
-							System.RemoveEntity(sEffect.id)
-						end)
+					for i,v in pairs(allEffects or {}) do
+						ent:LoadParticleEffect( nParticleSlot, v, params.properties or {});
 					end
 				end
 			end
 		end
+	end,
+
+	-- fixed this weeeeeeeeeeeeeeeeird ooooooooooold script :D
+	LoadParticleEffect = function(params)
+		if params.name and params.effect and params.pos then
+			local nParticleSlot = params.slot or -1
+			local ParticleEffect = params.effect
+			local ent = System.GetEntityByName(params.name)
+			if ent then
+				if(params.pos)then
+					local ent2 = System.SpawnEntity({class="OffHand", position = params.pos, name = "AttachedEntity_"..math.random()*999*999*999, orientation = params.dir or { x = 0, y = 0, z = 0}});
+					ent:AttachChild(ent2.id, 1)
+					ent2:LoadParticleEffect( nParticleSlot, ParticleEffect, params.properties or {});
+				else
+					ent:LoadParticleEffect( nParticleSlot, ParticleEffect, params.properties or {});
+				end;
+			end;
+		end;
 	end,
 
 	-- 1 = attach, 2 = detach!
@@ -1113,7 +1114,7 @@ RPC = {
 			local Child = System.GetEntityByName(params.childName)
 			local ent = System.GetEntityByName(params.parentName)
 			if (Child and ent) then
-				if params.option == 1 then
+				if(not params.option or params.option == 1)then
 					ent:AttachChild(Child.id, 1)
 				elseif params.option == 2 then
 					ent:DetachThis(Child.id, 1)
