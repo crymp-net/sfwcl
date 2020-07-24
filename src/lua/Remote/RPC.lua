@@ -1076,12 +1076,13 @@ RPC = {
 				local pos = params.pos or ent:GetPos();
 				local allEffects = params.effects;
 				if(allEffects and #allEffects>0)then
+					if(params.pos)then
+						local ent2 = System.SpawnEntity({class="OffHand", position = params.pos, name = "AttachedEntity_"..math.random()*999*999*999, orientation = params.dir or { x = 0, y = 0, z = 0}});
+						ent:AttachChild(ent2.id, 1)
+						ent = ent2;
+					end
 					for i,v in pairs(allEffects or {}) do
-						if params.properties then
-							ent:LoadParticleEffect( nParticleSlot, v, params.properties);
-						else
-							ent:LoadParticleEffect( nParticleSlot, v, {});
-						end
+						ent:LoadParticleEffect( nParticleSlot, v, params.properties or {});
 					end
 				end
 			end
@@ -1095,7 +1096,13 @@ RPC = {
 			local ParticleEffect = params.effect
 			local ent = System.GetEntityByName(params.name)
 			if ent then
-				ent:LoadParticleEffect( nParticleSlot, ParticleEffect, params.properties or {});
+				if(params.pos)then
+					local ent2 = System.SpawnEntity({class="OffHand", position = params.pos, name = "AttachedEntity_"..math.random()*999*999*999, orientation = params.dir or { x = 0, y = 0, z = 0}});
+					ent:AttachChild(ent2.id, 1)
+					ent2:LoadParticleEffect( nParticleSlot, ParticleEffect, params.properties or {});
+				else
+					ent:LoadParticleEffect( nParticleSlot, ParticleEffect, params.properties or {});
+				end;
 			end;
 		end;
 	end,
