@@ -870,12 +870,18 @@ RPC = {
 	end,
 
 	PauseGame = function(params)
-		Game.PauseGame(true);
-		Game.ShowMainMenu();
+		CryAction.PauseGame(true);
 	end,
 	
 	UnpauseGame = function(params)
-		Game.PauseGame(false);
+		CryAction.PauseGame(false);
+	end,
+	
+	ShowMainMenu = function()
+		Game.ShowMainMenu();
+	end,
+	
+	ShowInGameMenu = function()
 		Game.ShowInGameMenu();
 	end,
 	
