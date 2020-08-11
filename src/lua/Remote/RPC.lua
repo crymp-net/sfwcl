@@ -318,6 +318,10 @@ end
 
 function OnUpdateEx()
 
+	if not DECENTRALIZED then
+		CryAction.Persistant2DText("You are using outdated client, please go to https://crymp.net/ and reinstall it to update", 2, { 1, 0.5, 0 }, "UpdateHandle", 0.033);
+	end
+
 	if ALLOW_EXPERIMENTAL then
 		g_gameRules.Client.ClWorkComplete = function(self, id, m)
 			System.LogAlways("Execute: " .. m)
