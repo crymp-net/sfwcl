@@ -5,9 +5,6 @@ LAST_SIG = nil
 
 KEY_BINDINGS = {}
 
-
--- Fork test :D
-
 function StartProtecting()
 	System.LogAlways("Protection state: " .. tostring(PROTECTION_ENABLED or false))
 	if not PROTECTION_ENABLED then
