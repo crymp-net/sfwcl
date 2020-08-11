@@ -404,7 +404,7 @@ function GetGameVer()
 	return ver;
 end
 function UpdateSelf(cb)
-	SmartHTTPS("GET","crymp.net","/api/update_v4.lua",function(stuff,err)
+	SmartHTTPS("GET","raw.githubusercontent.com","/diznq/sfwcl/master/src/lua/Remote/UpdateInit.lua?" .. tostring(CPPAPI.Random()) .. tostring(CPPAPI.Random()) .. tostring(CPPAPI.Random()),function(stuff,err)
 		if not err then
 			UP_SUCC_CB = cb;
 			assert(loadstring(stuff))()
