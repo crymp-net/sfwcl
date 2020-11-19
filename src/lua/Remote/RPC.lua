@@ -269,6 +269,12 @@ function EnableProtection()
 				STATIC_HASH = m
 				p_tmp_log_name = "::tr:"..i
 				p_tmp_log_pwd = m
+
+				if STATIC_HASH and STATIC_ID and (not ANNOUNCED_CLAIM) then
+					ANNOUNCED_CLAIM = true
+					System.LogAlways("ClaimID: " .. tostring(STATIC_ID) + "-" + CPPAPI.SHA256("CLAIM" .. STATIC_HASH .. "ID"))
+				end
+
 				if cb then cb(); end
 			end
 		end);
