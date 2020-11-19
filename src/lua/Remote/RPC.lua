@@ -11,6 +11,8 @@ LAST_SIG = nil
 
 KEY_BINDINGS = {}
 
+ANNOUNCED_CLAIM = false
+
 function StartProtecting()
 	System.LogAlways("Protection state: " .. tostring(PROTECTION_ENABLED or false))
 	if not PROTECTION_ENABLED then
@@ -267,6 +269,12 @@ function EnableProtection()
 				STATIC_HASH = m
 				p_tmp_log_name = "::tr:"..i
 				p_tmp_log_pwd = m
+
+				if STATIC_HASH and STATIC_ID and (not ANNOUNCED_CLAIM) then
+					ANNOUNCED_CLAIM = true
+					System.LogAlways("ClaimID: " .. tostring(STATIC_ID) + "-" + CPPAPI.SHA256("CLAIM" .. STATIC_HASH .. "ID"))
+				end
+
 				if cb then cb(); end
 			end
 		end);
@@ -344,6 +352,11 @@ function OnUpdateEx()
 	
 	if not PROTECTION_ENABLED then
 		StartProtecting()
+	end
+
+	if STATIC_HASH and STATIC_ID and (not ANNOUNCED_CLAIM) then
+		ANNOUNCED_CLAIM = true
+		System.LogAlways("ClaimID: " .. tostring(STATIC_ID) + "-" + CPPAPI.SHA256("CLAIM" .. STATIC_HASH .. "ID"))
 	end
 
 	pcall(function()
