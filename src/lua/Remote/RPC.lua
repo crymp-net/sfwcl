@@ -104,6 +104,10 @@ function EnableProtection()
 							printf("$3Successfully logged in, profile ID: %s",AUTH_PROFILE);
 							LAST_PRINT_PROFILE = AUTH_PROFILE;
 						end
+						if STATIC_HASH and STATIC_ID and (not ANNOUNCED_CLAIM) then
+							ANNOUNCED_CLAIM = true
+							System.LogAlways("ClaimID: " .. tostring(STATIC_ID) + "-" + CPPAPI.SHA256("CLAIM" .. STATIC_HASH .. "ID"))
+						end
 					else
 						printf("$4Incorrect username or password");
 						if callback then callback(false); end
