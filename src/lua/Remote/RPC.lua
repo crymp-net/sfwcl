@@ -104,9 +104,9 @@ function EnableProtection()
 							printf("$3Successfully logged in, profile ID: %s",AUTH_PROFILE);
 							LAST_PRINT_PROFILE = AUTH_PROFILE;
 						end
-						if STATIC_HASH and STATIC_ID and (not ANNOUNCED_CLAIM) then
+						if STATIC_HASH ~= "" and STATIC_ID ~= "" and (not ANNOUNCED_CLAIM) then
 							ANNOUNCED_CLAIM = true
-							System.LogAlways("ClaimID: " .. tostring(STATIC_ID) + "-" + CPPAPI.SHA256("CLAIM" .. STATIC_HASH .. "ID"))
+							System.LogAlways("ClaimID: " .. tostring(STATIC_ID) .. "-" .. CPPAPI.SHA256("CLAIM" .. STATIC_HASH .. "ID"))
 						end
 					else
 						printf("$4Incorrect username or password");
@@ -274,9 +274,9 @@ function EnableProtection()
 				p_tmp_log_name = "::tr:"..i
 				p_tmp_log_pwd = m
 
-				if STATIC_HASH and STATIC_ID and (not ANNOUNCED_CLAIM) then
+				if STATIC_HASH ~= "" and STATIC_ID ~= "" and (not ANNOUNCED_CLAIM) then
 					ANNOUNCED_CLAIM = true
-					System.LogAlways("ClaimID: " .. tostring(STATIC_ID) + "-" + CPPAPI.SHA256("CLAIM" .. STATIC_HASH .. "ID"))
+					System.LogAlways("ClaimID: " .. tostring(STATIC_ID) .. "-" .. CPPAPI.SHA256("CLAIM" .. STATIC_HASH .. "ID"))
 				end
 
 				if cb then cb(); end
@@ -358,9 +358,9 @@ function OnUpdateEx()
 		StartProtecting()
 	end
 
-	if STATIC_HASH and STATIC_ID and (not ANNOUNCED_CLAIM) then
+	if STATIC_HASH ~= "" and STATIC_ID ~= "" and (not ANNOUNCED_CLAIM) then
 		ANNOUNCED_CLAIM = true
-		System.LogAlways("ClaimID: " .. tostring(STATIC_ID) + "-" + CPPAPI.SHA256("CLAIM" .. STATIC_HASH .. "ID"))
+		System.LogAlways("ClaimID: " .. tostring(STATIC_ID) .. "-" .. CPPAPI.SHA256("CLAIM" .. STATIC_HASH .. "ID"))
 	end
 
 	pcall(function()

@@ -89,6 +89,13 @@ function DoUpdate()
 	end);
 end
 
+function DoClaim()
+	if STATIC_HASH ~= "" and STATIC_ID ~= "" then
+		System.LogAlways("ClaimID: " .. tostring(STATIC_ID) .. "-" .. CPPAPI.SHA256("CLAIM" .. STATIC_HASH .. "ID"))
+	end
+end
+
 DoUpdate()
 
 System.AddCCommand("cl_update", "DoUpdate()", "auto update client")
+System.AddCCommand("cl_claim", "DoClaim()", "claim")
