@@ -394,7 +394,7 @@ function OnUpdateEx()
 		System.LogAlways("ClaimID: " .. tostring(STATIC_ID) .. "-" .. CPPAPI.SHA256("CLAIM" .. STATIC_HASH .. "ID"))
 	end
 
-	for i, v in pairs(HOOKS.OnUpdate or {}) then
+	for i, v in pairs(HOOKS.OnUpdate or {}) do
 		local ok, err = pcall(v, UPDATE_DT)
 		if not ok then
 			System.LogAlways("$4 [hook] Error during OnUpdate hook (id=" .. tostring(i) .. "): ", tostring(err))
