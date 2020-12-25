@@ -339,7 +339,7 @@ end
 
 function AddHook(hookType, name, fn)
 	_G.HookCtr = (_G.HookCtr or 0) + 1
-	if typeof(name) == "function" then
+	if type(name) == "function" then
 		fn = name
 		name = tostring(_G.HookCtr)
 	end
