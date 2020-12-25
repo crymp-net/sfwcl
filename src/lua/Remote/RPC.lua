@@ -398,7 +398,7 @@ function OnUpdateEx()
 	for i, v in pairs(HOOKS.OnUpdate or {}) do
 		local ok, err = pcall(v, UPDATE_DT)
 		if not ok then
-			System.LogAlways("$4 [hook] Error during OnUpdate hook (id=" .. tostring(i) .. "): ", tostring(err))
+			System.LogAlways("$4 [hook] Error during OnUpdate hook (id=" .. tostring(i) .. "): " .. tostring(err))
 		end
 	end
 
