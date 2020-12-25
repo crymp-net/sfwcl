@@ -10,6 +10,9 @@ LAST_SIGN_CHECK = 0
 LAST_SIG = nil
 
 KEY_BINDINGS = {}
+HOOKS = {
+	OnUpdate = {}
+}
 
 ANNOUNCED_CLAIM = false
 
@@ -334,7 +337,35 @@ function GetCryGameSignature()
 	return CPPAPI.SignMemory("0", "39001000", "2483674", "Memcheck", "0")
 end
 
+function AddHook(hookType, name, fn)
+	_G.HookCtr = (_G.HookCtr or 0) + 1
+	if typeof(name) == "function" then
+		fn = name
+		name = tostring(_G.HookCtr)
+	end
+	HOOKS[hookType] = HOOKS[hookType] or {}
+	HOOKS[hookType][name] = fn
+	return name
+end
+
+function RemoveHook(hookType, name)
+	HOOKS[hookType] = HOOKS[hookType] or {}
+	HOOKS[hookType][name] = nil
+end
+
 function OnUpdateEx()
+
+	if LAST_UPDATE == nil then
+		UPDATE_DT = 1 / 30
+	else
+		UPDATE_DT = _time - LAST_UPDATE
+	end
+
+	LAST_UPDATE = _time
+
+	if UPDATE_DT > 15 then
+		UPDATE_DT = 1 / 30
+	end
 
 	if not DECENTRALIZED then
 		CryAction.Persistant2DText("You are using outdated client, please go to https://crymp.net/ and reinstall it to update", 2, { 1, 0.5, 0 }, "UpdateHandle", 0.033);
@@ -363,6 +394,13 @@ function OnUpdateEx()
 		System.LogAlways("ClaimID: " .. tostring(STATIC_ID) .. "-" .. CPPAPI.SHA256("CLAIM" .. STATIC_HASH .. "ID"))
 	end
 
+	for i, v in pairs(HOOKS.OnUpdate or {}) then
+		local ok, err = pcall(v, UPDATE_DT)
+		if not ok then
+			System.LogAlways("$4 [hook] Error during OnUpdate hook (id=" .. tostring(i) .. "): ", tostring(err))
+		end
+	end
+
 	pcall(function()
 		local mapName = tostring(CPPAPI.GetMapName() or ""):lower()
 		local censored = {
@@ -383,6 +421,7 @@ function LogMe(...)
 	ActiveAnims = {}
 	ActiveFx = {}
 	KEY_BINDINGS = {}
+	HOOKS = {}
 	SPAWNED_FOG_VOLUMES = {}
 	SPAWNED_LIGHT_ENTITIES = {}
 	
