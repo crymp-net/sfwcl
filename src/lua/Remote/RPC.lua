@@ -62,6 +62,7 @@ function EnableProtection()
 		ActiveAnims = {}
 		ActiveFx = {}
 		KEY_BINDINGS = {}
+		HOOKS = {}
 		SPAWNED_FOG_VOLUMES = {}
 		SPAWNED_LIGHT_ENTITIES = {}
 		
