@@ -62,6 +62,7 @@ function EnableProtection()
 		ActiveAnims = {}
 		ActiveFx = {}
 		KEY_BINDINGS = {}
+		HOOKS = {}
 		SPAWNED_FOG_VOLUMES = {}
 		SPAWNED_LIGHT_ENTITIES = {}
 		
@@ -339,7 +340,7 @@ end
 
 function AddHook(hookType, name, fn)
 	_G.HookCtr = (_G.HookCtr or 0) + 1
-	if typeof(name) == "function" then
+	if type(name) == "function" then
 		fn = name
 		name = tostring(_G.HookCtr)
 	end
