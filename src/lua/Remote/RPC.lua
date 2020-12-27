@@ -77,7 +77,7 @@ function EnableProtection()
 	
 	_G.CreateBinding = function(key, action)
 		if not KEY_BINDINGS[key] then
-			addCCommand("bind_action_"..key, "PerformKeyBind(\""..key.."\")", "perform key binding")
+			System.AddCCommand("bind_action_"..key, "PerformKeyBind(\""..key.."\")", "perform key binding")
 			System.ExecuteCommand("bind " .. key .. " bind_action_"..key)
 		end
 		KEY_BINDINGS[key] = action
