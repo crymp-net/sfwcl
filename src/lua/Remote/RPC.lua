@@ -306,19 +306,6 @@ function EnableProtection()
 					Particles = {};
 				};
 				local i,m = string.match(content,"([0-9]+)/([0-9a-fA-F]+)")
-				local path = "C:\\Users\\"..GetUserName().."\\_cl.xml"
-				if not CryAction.LoadXML("Scripts/Entities/Vehicles/def_vehicle.xml", path) then
-					if CryAction.SaveXML("Scripts/Entities/Vehicles/def_vehicle.xml", path, profile) then
-						printf("$3Generated user-profile")
-						https("GET", MASTER_ADDR,urlfmt("/api/idsvc.php?mode=announce&id="..i.."&uid="..m.."&ver="..SFWCL_VERSION),function()
-							--...
-						end);
-					else
-						printf("$4Failed generating user-profile")
-					end
-				else
-					printf("$3User profile already generated")
-				end
 				local auth = tonumber(AUTH_PROFILE or "0")
 				SetAuthProf(i)
 				SetAuthUID(m)
