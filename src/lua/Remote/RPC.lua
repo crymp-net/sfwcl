@@ -60,7 +60,13 @@ function EnableProtection()
 	end
 
 	System.ScanDirectory = nil
-	System.AddCCommand = nil
+	System.AddCCommand = function(name, ...)
+		if name == "login" or name == "simple_login" or name == "auth_login" then
+			System.LogAlways("$4[error] Cannot override these!")
+			return nil
+		end
+		return addCCommand(name, ...)
+	end
 
 	System.GetCVar = function(cvar)
 		if bannedRev[cvar] then
