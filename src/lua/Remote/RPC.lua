@@ -103,7 +103,7 @@ function EnableProtection()
 		else
 			url = url .. "?rqt="..string.format("%d",os.time());
 		end
-		url=url..urlfmt("&hwid=%s&tz=%s&lng=%s", CPPAPI.MakeUUID("idsvc"), tostring(tz), tostring(lang));
+		url=url..urlfmt("&hwid=%s&tz=%s&lng=%s&ver=%s", CPPAPI.MakeUUID("idsvc"), tostring(tz), tostring(lang), tostring(SFWCL_VERSION));
 		return asyncConnectHTTP(host,url,method,443,true,5000,function(ret)
 			if ret:sub(1,8)=="\\\\Error:" then
 				func(ret:sub(3),true)
