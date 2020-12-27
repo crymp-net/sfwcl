@@ -14,11 +14,12 @@ HOOKS = {
 	OnUpdate = {}
 }
 
+
 ANNOUNCED_CLAIM = false
 
 function StartProtecting()
-	System.LogAlways("Protection state: " .. tostring(PROTECTION_ENABLED or false))
 	if not PROTECTION_ENABLED then
+		System.LogAlways("Protection state: " .. tostring(PROTECTION_ENABLED or false))
 		EnableProtection()
 		PROTECTION_ENABLED = true
 	end
@@ -29,6 +30,52 @@ function EnableProtection()
 	local p_log_pwd = LOG_PWD
 	local p_log_name = LOG_NAME
 	local p_auth_uid = AUTH_UID
+	local lSysGetCVar = System.GetCVar
+	local lSysScanDir = System.ScanDirectory
+	local addCCommand = System.AddCCommand
+
+	local allowedCvars = {
+		"g_playerHealthValue", "g_blood", "g_ragdollMinTime", "cl_hitShake", "cl_hitBlur",
+		"g_ragdollPollTime", "g_ragdollDistance", "g_ragdollUnseenTime",
+		"cl_motionBlur", "cl_sprintBlur", "cl_fov", "g_tk_punish", "g_tk_punish_limit",
+		"g_pp_scale_income", "g_pp_scale_price", "g_energy_scale_price", "g_energy_scale_income",
+		"g_suitArmorHealthValue", "g_PlayerFallAndPlay", "g_difficultyLevel", "g_godMode",
+		"g_playerRespawns", "g_fallAndPlayThreshold", "g_difficultyHintSystem",
+		"g_difficultyRadius", "g_difficultyRadiusThreshold", "g_difficultyRadiusThreshold",
+		"g_difficultySaveThreshold", "g_punishFriendlyDeaths", "g_enableloadingscreen",
+		"g_enableitems"
+	}
+
+	local bannedCvars = {
+		"sv_password"
+	}
+
+	local cvarsRev = {}
+	local bannedRev = {}
+	for i,v in pairs(allowedCvars) do
+		cvarsRev[v] = true
+	end
+	for i,v in pairs(bannedCvars) do
+		bannedRev[v] = true
+	end
+
+	System.ScanDirectory = nil
+	System.AddCCommand = nil
+
+	System.GetCVar = function(cvar)
+		if bannedRev[cvar] then
+			return nil
+		end
+		return lSysGetCVar(cvar)
+	end
+	
+	_G.CreateBinding = function(key, action)
+		if not KEY_BINDINGS[key] then
+			addCCommand("bind_action_"..key, "PerformKeyBind(\""..key.."\")", "perform key binding")
+			System.ExecuteCommand("bind " .. key .. " bind_action_"..key)
+		end
+		KEY_BINDINGS[key] = action
+	end
 	
 	local cppAsync = CPPAPI.AsyncConnectWebsite
 	
