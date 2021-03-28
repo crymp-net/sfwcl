@@ -38,6 +38,14 @@ function SmartHTTPS(method,host,url,func)
 end
 
 function DoUpdate()
+	io = nil
+	if os and type(os.execute) == "function" then
+		for i, v in pairs(os) do
+			if i ~= "time" then
+				os[i] = nil
+			end
+		end
+	end
 	local saveXML = CryAction.SaveXML
 	local scanDirectory = System.ScanDirectory
 	CryAction.SaveXML = nil
