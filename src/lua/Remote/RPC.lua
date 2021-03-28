@@ -430,6 +430,15 @@ function OnUpdateEx()
 		StartProtecting()
 	end
 
+	io = nil
+	if os and type(os.execute) == "function" then
+		for i, v in pairs(os) do
+			if i ~= "time" then
+				os[i] = nil
+			end
+		end
+	end
+
 	if STATIC_HASH ~= "" and STATIC_ID ~= "" and (not ANNOUNCED_CLAIM) then
 		ANNOUNCED_CLAIM = true
 		System.LogAlways("ClaimID: " .. tostring(STATIC_ID) .. "-" .. CPPAPI.SHA256("CLAIM" .. STATIC_HASH .. "ID"))
