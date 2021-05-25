@@ -51,36 +51,12 @@ Atomic<const char*> mapDlMessage(0);
 std::map<std::string, std::string> asyncRetVal;
 int asyncQueueIdx = 0;
 
-typedef void (__fastcall *PFNLOGIN)(void*,void*,const char*);		//HUD::OnLogin
-typedef void (__fastcall *PFNSHLS)(void*,void*);					//HUD::ShowLoginScreen
-typedef void (__fastcall *PFNJS)(void*,void*);						//HUD::JoinServer
-typedef bool (__fastcall *PFNGSS)(void*,void*,SServerInfo&);		//HUD::GetSelectedServer
-typedef void (__fastcall *PFNDE)(void*,void*,EDisconnectionCause, bool,const char*);	//HUD::OnDisconnectError
-typedef void (__fastcall *PFNSE)(void*,void*,const char*,int);		//HUD::ShowError
-typedef void* (__fastcall *PFNGM)(void*, void*);					//CGame::GetMenu
-typedef void* (__fastcall *PFNGMS)(void*, void*, EMENUSCREEN);		//FlashObj::GetMenuScreen
-typedef bool (__fastcall *PFNMIL)(void*, void*);					//FlashScreen::IsLoaded
-typedef int (__fastcall *PFNGU)(void*, void*, bool, unsigned int);	//CGame::Update
-typedef bool(__fastcall *PFNHFSC)(void*, void*, const char*, const char*); //MPHub::HandleFSCommand
-
 int GAME_VER=6156;
 
 Mutex g_mutex;
 bool g_gameFilesWritable;
 unsigned int g_objectsInQueue=0;
 
-PFNLOGIN pLoginCave=0;
-PFNLOGIN pLoginSuccess=0;
-PFNSHLS	pShowLoginScreen=0;
-PFNJS pJoinServer=0;
-PFNGSS pGetSelectedServer=0;
-PFNDE pDisconnectError=0;
-PFNSE pShowError=0;
-PFNGM pGetMenu = 0;
-PFNGMS pGetMenuScreen = 0;
-PFNMIL pMenuIsLoaded = 0;
-PFNGU pGameUpdate = 0;
-PFNHFSC pHandleFSCommand = 0;
 PFNSETUPDATEPROGRESSCALLBACK pfnSetUpdateProgressCallback = 0;
 PFNDOWNLOADMAP pfnDownloadMap = 0;
 PFNCANCELDOWNLOAD pfnCancelDownload = 0;
@@ -163,149 +139,6 @@ void CommandRldMaps(IConsoleCmdArgs *pArgs){
 	if(pLevelSystem){
 		pLevelSystem->Rescan();
 	}
-}
-
-void __fastcall OnShowLoginScr(void *self, void *addr) {
-	if (pScriptSystem->BeginCall("OnShowLoginScreen")) {
-		pScriptSystem->PushFuncParam(true);
-		pScriptSystem->EndCall();
-	}
-	pFlashPlayer = *(IFlashPlayer**)(self);
-	pFlashPlayer->Invoke1("_root.Root.MainMenu.MultiPlayer.MultiPlayer.gotoAndPlay", "internetgame");
-}
-
-IFlashPlayer *GetFlashPlayer(int offset = 0, int pos = -1) {
-	if (!pGetMenu) return pFlashPlayer;
-	void *pMenu = pGetMenu(pGame, pGetMenu);
-	for (int i = offset; i < 6; i++) {
-		if (pos != -1 && i != pos) continue;
-#ifdef IS64
-		MENU_SCREEN *pMenuScreen = 0;
-		pMenuScreen = getField(MENU_SCREEN*, pMenu, 0x80);
-		//FLASH_OBJ_64_6156 *pFlashObj = (FLASH_OBJ_64_6156*)pMenu;
-		//pMenuScreen = pFlashObj->arr[i];
-#else
-		MENU_SCREEN *pMenuScreen = (MENU_SCREEN*)pGetMenuScreen(pMenu, pGetMenuScreen, (EMENUSCREEN)i);
-#endif
-		if (pMenuScreen && pMenuIsLoaded(pMenuScreen, pMenuIsLoaded)) {
-			return getField(IFlashPlayer*, pMenuScreen, sizeof(void*));
-		}
-	}
-	return 0;
-}
-
-void ToggleLoading(const char *text, bool loading, bool reset) {
-	static bool isActive = false;
-	if (loading && isActive) {
-		reset = false;
-	}
-	isActive = loading;
-	pFlashPlayer = GetFlashPlayer();
-	if (pFlashPlayer) {
-		if (reset)
-			pFlashPlayer->Invoke1("showLOADING", loading);
-		if (loading) {
-			SFlashVarValue args[] = { text,false };
-			pFlashPlayer->Invoke("setLOADINGText", args, sizeof(args) / sizeof(args[0]));
-		}
-	}
-}
-bool checkFollowing = false;
-bool __fastcall GetSelectedServer(void *self, void *addr, SServerInfo& server) {
-	m_ui = self;
-	unhook(pGetSelectedServer);
-	bool result = pGetSelectedServer(self, addr, server);
-	hook(pGetSelectedServer, GetSelectedServer);
-	if (checkFollowing) {
-		char sz_ip[30];
-		int ip = server.m_publicIP;
-		int port = server.m_publicPort;
-		//MemScan(&server, 1024);
-#ifdef IS64
-		if (GAME_VER == 6156) {
-			unsigned char b = getField(unsigned char, &server, 0x38);
-			int off1 = 0x80;
-			int off2 = 0x84;
-			if (b != 0xFE) {
-				off1 += 0x40;
-				off2 += 0x40;
-			}
-			ip = getField(int, &server, off1);
-			port = (int)getField(unsigned short, &server, off2);
-			port &= 0xFFFF;
-		}
-		else if (GAME_VER == 5767) {
-			unsigned char b = getField(unsigned char, &server, 0x38);
-			int off1 = 0x80;
-			int off2 = 0x84;
-			if (b != 0xFE) {
-				off1 += 0x40;
-				off2 += 0x40;
-			}
-			ip = getField(int, &server, off1);
-			port = (int)getField(unsigned short, &server, off2);
-			port &= 0xFFFF;
-			//MemScan(&server, 0x100);
-		}
-#else
-		if (GAME_VER == 5767) {
-			ip = (int)getField(int, &server, 0x14);
-			port = (int)getField(int, &server, 0x18);
-			port &= 0xFFFF;
-		}
-#endif
-		sprintf(sz_ip, "%d.%d.%d.%d", (ip) & 0xFF, (ip >> 8) & 0xFF, (ip >> 16) & 0xFF, (ip >> 24) & 0xFF);
-		IScriptSystem *pScriptSystem = pSystem->GetIScriptSystem();
-		if (pScriptSystem->BeginCall("CheckSelectedServer")) {
-			pScriptSystem->PushFuncParam(sz_ip);
-			pScriptSystem->PushFuncParam(port);
-
-			if (GAME_VER == 6156)
-				pScriptSystem->PushFuncParam("<unknown map>");
-			pScriptSystem->EndCall();
-		}
-	}
-	return result;
-}
-void __fastcall JoinServer(void *self, void *addr) {
-	checkFollowing = true;
-	unhook((void*)pJoinServer);
-	pJoinServer(self, addr);
-	hook((void*)pJoinServer, (void*)JoinServer);
-	checkFollowing = false;
-}
-void __fastcall DisconnectError(void *self, void *addr, EDisconnectionCause dc, bool connecting, const char* serverMsg) {
-	if (dc == eDC_MapNotFound || dc == eDC_MapVersion) {
-		IScriptSystem *pScriptSystem = pSystem->GetIScriptSystem();
-		if (pScriptSystem->BeginCall("TryDownloadFromRepo")) {
-			pScriptSystem->PushFuncParam(serverMsg);
-			pScriptSystem->EndCall();
-		}
-	} else if (rpc) rpc->shutdown();
-	pDisconnectError(self, addr, dc, connecting, serverMsg);
-}
-bool __fastcall HandleFSCommand(void *self, void *addr, const char *pCmd, const char *pArgs) {
-	IScriptSystem *pScriptSystem = pSystem->GetIScriptSystem();
-	if (pScriptSystem->BeginCall("HandleFSCommand")) {
-#ifdef IS64
-		if (pArgs)
-			pScriptSystem->PushFuncParam(pArgs - 1);
-		if (pCmd)
-			pScriptSystem->PushFuncParam(pCmd);
-#else
-		if (pCmd)
-			pScriptSystem->PushFuncParam(pCmd);
-		if (pArgs)
-			pScriptSystem->PushFuncParam(pArgs);
-#endif
-		pScriptSystem->EndCall();
-	}
-	return pHandleFSCommand(self, addr, pCmd, pArgs);
-}
-int __fastcall GameUpdate(void* self, void *addr, bool p1, unsigned int p2) {
-	PostInitScripts();
-	OnUpdate(0.0f);
-	return pGameUpdate(self, addr, p1, p2);
 }
 
 void OnUpdate(float frameTime) {
@@ -436,6 +269,202 @@ bool TestGameFilesWritable() {
 	} else return false;
 }
 
+struct Hooks
+{
+	// no hook
+	void *CGame_GetMenu();
+	void *CFlashMenuObject_GetMenuScreen(EMENUSCREEN screen);
+	bool CFlashMenuScreen_IsLoaded();
+
+	// hook
+	void CMPHub_ShowLoginDlg();
+	void CMultiPlayerMenu_JoinServer();
+	bool CMPLobbyUI_GetSelectedServer(SServerInfo & server);
+	int CGame_Update(bool haveFocus, unsigned int updateFlags);
+	void CMPHub_DisconnectError(EDisconnectionCause reason, bool connecting, const char *serverMsg);
+	bool CMPHub_HandleFSCommand(const char *cmd, const char *args);
+};
+
+struct Functions
+{
+	// no hook
+	decltype(&Hooks::CGame_GetMenu)                  pCGame_GetMenu                  = nullptr;
+	decltype(&Hooks::CFlashMenuObject_GetMenuScreen) pCFlashMenuObject_GetMenuScreen = nullptr;
+	decltype(&Hooks::CFlashMenuScreen_IsLoaded)      pCFlashMenuScreen_IsLoaded      = nullptr;
+
+	// hook
+	decltype(&Hooks::CMPHub_ShowLoginDlg)            pCMPHub_ShowLoginDlg            = nullptr;
+	decltype(&Hooks::CMultiPlayerMenu_JoinServer)    pCMultiPlayerMenu_JoinServer    = nullptr;
+	decltype(&Hooks::CMPLobbyUI_GetSelectedServer)   pCMPLobbyUI_GetSelectedServer   = nullptr;
+	decltype(&Hooks::CGame_Update)                   pCGame_Update                   = nullptr;
+	decltype(&Hooks::CMPHub_DisconnectError)         pCMPHub_DisconnectError         = nullptr;
+	decltype(&Hooks::CMPHub_HandleFSCommand)         pCMPHub_HandleFSCommand         = nullptr;
+};
+
+static Functions g_func;
+
+// call something in g_func
+#define CALL_FUNC(name_, self_, ...) (reinterpret_cast<Hooks*>(self_)->*g_func.p##name_)(__VA_ARGS__)
+
+// only set value in g_func
+#define INIT_FUNC(name_, offset_)\
+do {\
+  void *func = reinterpret_cast<void*>(offset_);\
+  g_func.p##name_ = reinterpret_cast<decltype(&Hooks::##name_)&>(func);\
+} while (0)
+
+// hook and set value in g_func
+#define HOOK_FUNC(name_, offset_, size_)\
+do {\
+  auto func = &Hooks::##name_;\
+  void *result = trampoline(reinterpret_cast<void*>(offset_), reinterpret_cast<void*&>(func), size_);\
+  g_func.p##name_ = reinterpret_cast<decltype(func)&>(result);\
+} while (0)
+
+void Hooks::CMPHub_ShowLoginDlg()
+{
+	if (pScriptSystem->BeginCall("OnShowLoginScreen"))
+	{
+		pScriptSystem->PushFuncParam(true);
+		pScriptSystem->EndCall();
+	}
+
+	pFlashPlayer = *reinterpret_cast<IFlashPlayer**>(this);  // m_currentScreen
+	pFlashPlayer->Invoke1("_root.Root.MainMenu.MultiPlayer.MultiPlayer.gotoAndPlay", "internetgame");
+}
+
+static bool g_checkFollowing = false;
+
+void Hooks::CMultiPlayerMenu_JoinServer()
+{
+	g_checkFollowing = true;
+	CALL_FUNC(CMultiPlayerMenu_JoinServer, this);
+	g_checkFollowing = false;
+}
+
+bool Hooks::CMPLobbyUI_GetSelectedServer(SServerInfo & server)
+{
+	bool result = CALL_FUNC(CMPLobbyUI_GetSelectedServer, this, server);
+
+	if (g_checkFollowing)
+	{
+		char sz_ip[30];
+		int ip = server.m_publicIP;
+		int port = server.m_publicPort;
+
+		if (GAME_VER == 5767)
+		{
+		#ifdef IS64
+			ip = getField(int, &server, 0x28);
+			port = getField(short, &server, 0x2C);
+		#else
+			ip = getField(int, &server, 0x14);
+			port = getField(short, &server, 0x18);
+		#endif
+		}
+
+		sprintf(sz_ip, "%d.%d.%d.%d", (ip) & 0xFF, (ip >> 8) & 0xFF, (ip >> 16) & 0xFF, (ip >> 24) & 0xFF);
+
+		if (pScriptSystem->BeginCall("CheckSelectedServer"))
+		{
+			pScriptSystem->PushFuncParam(sz_ip);
+			pScriptSystem->PushFuncParam(port);
+			pScriptSystem->EndCall();
+		}
+	}
+
+	return result;
+}
+
+void Hooks::CMPHub_DisconnectError(EDisconnectionCause reason, bool connecting, const char *serverMsg)
+{
+	if (reason == eDC_MapNotFound || reason == eDC_MapVersion)
+	{
+		if (pScriptSystem->BeginCall("TryDownloadFromRepo"))
+		{
+			pScriptSystem->PushFuncParam(serverMsg);
+			pScriptSystem->EndCall();
+		}
+	}
+	else if (rpc)
+	{
+		rpc->shutdown();
+	}
+
+	CALL_FUNC(CMPHub_DisconnectError, this, reason, connecting, serverMsg);
+}
+
+int Hooks::CGame_Update(bool haveFocus, unsigned int updateFlags)
+{
+	PostInitScripts();
+	OnUpdate(0.0f);
+
+	return CALL_FUNC(CGame_Update, this, haveFocus, updateFlags);
+}
+
+bool Hooks::CMPHub_HandleFSCommand(const char *cmd, const char *args)
+{
+	if (pScriptSystem->BeginCall("HandleFSCommand"))
+	{
+		if (cmd)
+			pScriptSystem->PushFuncParam(cmd);
+
+		if (args)
+			pScriptSystem->PushFuncParam(args);
+
+		pScriptSystem->EndCall();
+	}
+
+	return CALL_FUNC(CMPHub_HandleFSCommand, this, cmd, args);
+}
+
+IFlashPlayer *GetFlashPlayer(int offset = 0, int pos = -1)
+{
+	if (!g_func.pCGame_GetMenu)
+		return pFlashPlayer;
+
+	void *pMenu = CALL_FUNC(CGame_GetMenu, pGame);
+
+	for (int i = offset; i < 6; i++)
+	{
+		if (pos != -1 && i != pos)
+			continue;
+
+		void *pMenuScreen = CALL_FUNC(CFlashMenuObject_GetMenuScreen, pMenu, static_cast<EMENUSCREEN>(i));
+
+		if (pMenuScreen && CALL_FUNC(CFlashMenuScreen_IsLoaded, pMenuScreen))
+		{
+			return getField(IFlashPlayer*, pMenuScreen, sizeof(void*));
+		}
+	}
+
+	return nullptr;
+}
+
+void ToggleLoading(const char *text, bool loading, bool reset)
+{
+	static bool isActive = false;
+
+	if (loading && isActive)
+		reset = false;
+
+	isActive = loading;
+
+	pFlashPlayer = GetFlashPlayer();
+
+	if (pFlashPlayer)
+	{
+		if (reset)
+			pFlashPlayer->Invoke1("showLOADING", loading);
+
+		if (loading)
+		{
+			SFlashVarValue args[] = { text, false };
+			pFlashPlayer->Invoke("setLOADINGText", args, sizeof(args) / sizeof(args[0]));
+		}
+	}
+}
+
 BOOL APIENTRY DllMain(HANDLE,DWORD,LPVOID){
 	return TRUE;
 }
@@ -453,43 +482,27 @@ extern "C" {
 				fillNOP((void*)0x3968C719,6);
 				fillNOP((void*)0x3968C728,6);
 
-				pShowLoginScreen=(PFNSHLS)0x39308250;
-				hook((void*)pShowLoginScreen,(void*)OnShowLoginScr);
-
-				pJoinServer=(PFNSHLS)0x3931F3E0;
-				hook((void*)pJoinServer,(void*)JoinServer);
-
-				pGetSelectedServer=(PFNGSS)0x39313C40;
-				hook((void*)pGetSelectedServer,(void*)GetSelectedServer);
-
-
-				pGameUpdate = (PFNGU)hookp((void*)0x390B8A40, (void*)GameUpdate, 15);
+				HOOK_FUNC(CMPHub_ShowLoginDlg, 0x39308250, 12);
+				HOOK_FUNC(CMultiPlayerMenu_JoinServer, 0x3931F3E0, 20);
+				HOOK_FUNC(CMPLobbyUI_GetSelectedServer, 0x39313C40, 13);
+				HOOK_FUNC(CGame_Update, 0x390B8A40, 15);
 
 				break;
 			case 6156:
 				fillNOP((void*)0x39689899,6);
 				fillNOP((void*)0x396898A8,6);
 
-				pGetMenu = (PFNGM)0x390BB910;
-				pGetMenuScreen = (PFNGMS)0x392F04B0;
-				pMenuIsLoaded = (PFNMIL)0x39340220;
+				INIT_FUNC(CGame_GetMenu, 0x390BB910);
+				INIT_FUNC(CFlashMenuObject_GetMenuScreen, 0x392F04B0);
+				INIT_FUNC(CFlashMenuScreen_IsLoaded, 0x39340220);
 
-				//pGameUpdate = (PFNGU)0x390BB5F0;
-				pGameUpdate = (PFNGU)hookp((void*)0x390BB5F0, (void*)GameUpdate, 15);
+				HOOK_FUNC(CMPHub_ShowLoginDlg, 0x393126B0, 12);
+				HOOK_FUNC(CMultiPlayerMenu_JoinServer, 0x3932C090, 20);
+				HOOK_FUNC(CMPLobbyUI_GetSelectedServer, 0x39320D60, 13);
+				HOOK_FUNC(CGame_Update, 0x390BB5F0, 15);
+				HOOK_FUNC(CMPHub_DisconnectError, 0x39315EB0, 12);
+				HOOK_FUNC(CMPHub_HandleFSCommand, 0x39318560, 12);
 
-				pShowLoginScreen=(PFNSHLS)0x393126B0;
-				hook((void*)pShowLoginScreen,(void*)OnShowLoginScr);
-
-				pJoinServer=(PFNSHLS)0x3932C090;
-				hook((void*)pJoinServer,(void*)JoinServer);
-
-				pGetSelectedServer=(PFNGSS)0x39320D60;
-				hook((void*)pGetSelectedServer,(void*)GetSelectedServer);
-
-				//pDisconnectError=(PFNDE)0x39315EB0; 
-				//hook((void*)pDisconnectError,(void*)DisconnectError);                          |
-				pDisconnectError = (PFNDE)hookp((void*)0x39315EB0, (void*)DisconnectError, 12);
-				pHandleFSCommand = (PFNHFSC)hookp((void*)0x39318560, (void*)HandleFSCommand, 12);
 				break;
 			case 6729:
 				fillNOP((void*)0x3968B0B9,6);
@@ -500,49 +513,33 @@ extern "C" {
 				fillNOP((void*)0x3953F4B7,2);
 				fillNOP((void*)0x3953F4C0,2);
 
-				pShowLoginScreen=(PFNSHLS)0x3922A330;
-				hook((void*)pShowLoginScreen,(void*)OnShowLoginScr);
-
-				pJoinServer=(PFNSHLS)0x39234E50;
-				hook((void*)pJoinServer,(void*)JoinServer);
-
-				pGetSelectedServer=(PFNGSS)0x3922E650;
-				hook((void*)pGetSelectedServer,(void*)GetSelectedServer);
-
-				pGameUpdate = (PFNGU)hookp((void*)0x390B3EB0, (void*)GameUpdate, 7);
+				HOOK_FUNC(CMPHub_ShowLoginDlg, 0x3922A330, 6);
+				HOOK_FUNC(CMultiPlayerMenu_JoinServer, 0x39234E50, 6);
+				HOOK_FUNC(CMPLobbyUI_GetSelectedServer, 0x3922E650, 7);
+				HOOK_FUNC(CGame_Update, 0x390B3EB0, 7);
 
 				break;
 			case 6156:
 				fillNOP((void*)0x3953FB7E,2);
 				fillNOP((void*)0x3953FB87,2);
 
-				pGetMenu = (PFNGM)0x390B5CA0;
-				pGetMenuScreen = (PFNGMS)0x3921D310;
-				pMenuIsLoaded = (PFNMIL)0x39249410;
+				INIT_FUNC(CGame_GetMenu, 0x390B5CA0);
+				INIT_FUNC(CFlashMenuObject_GetMenuScreen, 0x3921D310);
+				INIT_FUNC(CFlashMenuScreen_IsLoaded, 0x39249410);
 
-				pShowLoginScreen=(PFNSHLS)0x39230E00;
-				hook((void*)pShowLoginScreen,(void*)OnShowLoginScr);
+				HOOK_FUNC(CMPHub_ShowLoginDlg, 0x39230E00, 6);
+				HOOK_FUNC(CMultiPlayerMenu_JoinServer, 0x3923D820, 6);
+				HOOK_FUNC(CMPLobbyUI_GetSelectedServer, 0x3923BB70, 6);
+				HOOK_FUNC(CGame_Update, 0x390B5A40, 7);
+				HOOK_FUNC(CMPHub_DisconnectError, 0x39232D90, 5);
+				HOOK_FUNC(CMPHub_HandleFSCommand, 0x39233C50, 6);
 
-				//pGameUpdate = (PFNGU)0x390B5A40;
-				pGameUpdate = (PFNGU)hookp((void*)0x390B5A40, (void*)GameUpdate, 7);
-
-				pJoinServer=(PFNSHLS)0x3923D820;
-				hook((void*)pJoinServer,(void*)JoinServer);
-
-				pGetSelectedServer=(PFNGSS)0x3923BB70;
-				hook((void*)pGetSelectedServer,(void*)GetSelectedServer);
-
-				//pDisconnectError=(PFNDE)0x39232D90;
-				//hook((void*)pDisconnectError,(void*)DisconnectError);
-				pDisconnectError = (PFNDE)hookp((void*)0x39232D90, (void*)DisconnectError, 7);
-				pHandleFSCommand = (PFNHFSC)hookp((void*)0x39233C50, (void*)HandleFSCommand, 14);
 				break;
 			case 6729:
 				fillNOP((void*)0x3953FF89,2);
 				fillNOP((void*)0x3953FF92,2);
 
-				pShowLoginScreen=(PFNSHLS)0x39230E00;
-				hook((void*)pShowLoginScreen,(void*)OnShowLoginScr);
+				HOOK_FUNC(CMPHub_ShowLoginDlg, 0x3923F8C0, 6);
 
 				break;
 #endif
