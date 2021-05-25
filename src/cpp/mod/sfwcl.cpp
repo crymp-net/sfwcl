@@ -34,6 +34,7 @@
 #include "Structs.h"
 #include "IntegrityService.h"
 #include "Atomic.h"
+#include "IATHook.h"
 
 CPPAPI *luaApi=0;
 Socket *socketApi=0;
@@ -215,7 +216,6 @@ void MemScan(void *base,int size){
 }
 
 void* __stdcall Hook_GetHostByName(const char* name){
-	unhook(gethostbyname);
 	hostent *h=0;
 	if(strcmp(SvMaster,"gamespy.com")){
 		int len=strlen(name);
@@ -236,7 +236,6 @@ void* __stdcall Hook_GetHostByName(const char* name){
 	} else {
 		h = gethostbyname(name);
 	}
-	hook(gethostbyname,Hook_GetHostByName);
 	return h;
 }
 bool TestFileWrite(const char *path) {
@@ -583,7 +582,7 @@ extern "C" {
 		pGame=(IGame*)createGame(ptr);
 		GAME_VER=version;
 		patchMem(version);
-		hook(gethostbyname,Hook_GetHostByName);
+		IATHookByAddress(GetModuleHandleA("CryNetwork.dll"), gethostbyname, Hook_GetHostByName);
 		g_gameFilesWritable = true; // lets pretend installer solved it for us!! TestGameFilesWritable();
 
 
