@@ -491,6 +491,11 @@ extern "C" {
 				fillNOP((void*)0x39689899,6);
 				fillNOP((void*)0x396898A8,6);
 
+				// disable natneg connect
+				fillNOP(reinterpret_cast<void*>(0x390D4105), 0x72);
+				fillNOP(reinterpret_cast<void*>(0x39331B09), 0x75);
+				fillNOP(reinterpret_cast<void*>(0x3933D7A9), 0x75);
+
 				INIT_FUNC(CGame_GetMenu, 0x390BB910);
 				INIT_FUNC(CFlashMenuObject_GetMenuScreen, 0x392F04B0);
 				INIT_FUNC(CFlashMenuScreen_IsLoaded, 0x39340220);
@@ -521,6 +526,11 @@ extern "C" {
 			case 6156:
 				fillNOP((void*)0x3953FB7E,2);
 				fillNOP((void*)0x3953FB87,2);
+
+				// disable natneg connect
+				fillNOP(reinterpret_cast<void*>(0x390C2DE1), 0x5D);
+				fillNOP(reinterpret_cast<void*>(0x39241B22), 0x5D);
+				fillNOP(reinterpret_cast<void*>(0x39247D72), 0x5D);
 
 				INIT_FUNC(CGame_GetMenu, 0x390B5CA0);
 				INIT_FUNC(CFlashMenuObject_GetMenuScreen, 0x3921D310);
