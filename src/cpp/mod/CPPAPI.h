@@ -1,5 +1,6 @@
 #pragma once
 
+#include "blockingconcurrentqueue.h"
 #include "Mutex.h"
 #include "Atomic.h"
 #include "NetworkStuff.h"
@@ -7,8 +8,9 @@
 #include <IScriptSystem.h>
 #include <IConsole.h>
 #include <ILevelSystem.h>
+#include <vector>
 
-#pragma region CPPAPIDefinitions
+
 class CPPAPI : public CScriptableBase {
 public:
 	CPPAPI(ISystem*,IGameFramework*);
@@ -41,7 +43,7 @@ protected:
 	ISystem				*m_pSystem;
 	IScriptSystem		*m_pSS;
 	IGameFramework		*m_pGameFW;
-	HANDLE				thread;
+	std::vector<HANDLE>	threads;
 };
 extern IConsole *pConsole;
 extern IGameFramework *pGameFramework;
@@ -75,15 +77,18 @@ struct AsyncData {
 		this->mutex = &g_mutex;
 		g_objectsInQueue++;
 		g_mutex.Lock();
-		extern HANDLE gEvent;
-		extern std::list<AsyncData*> asyncQueue;
+		//extern HANDLE gEvent;
+		//extern std::list<AsyncData*> asyncQueue;
+		extern moodycamel::BlockingConcurrentQueue<AsyncData*> asyncRequestQueue;
+		extern moodycamel::BlockingConcurrentQueue<AsyncData*> asyncResponseQueue;
 		extern int asyncQueueIdx;
 		GetClosestFreeItem(&asyncQueueIdx);
 		this->id = asyncQueueIdx;
 		this->finished = false;
 		this->executing = false;
-		SetEvent(gEvent);
-		asyncQueue.push_back(this);
+		//SetEvent(gEvent);
+		//asyncQueue.push_back(this);
+		asyncRequestQueue.enqueue(this);
 		g_mutex.Unlock();
 		if (pH) {
 			return pH->EndFunction(asyncQueueIdx);
@@ -107,28 +112,6 @@ struct AsyncData {
 		finished(false),
 		executing(false){}
 };
-#define AsyncReturn(what)\
-	extern IScriptSystem *pScriptSystem;\
-	char outn[255];\
-	sprintf(outn,"AsyncRet%d",(int)id);\
-	pScriptSystem->SetGlobalAny(outn,what);\
-	asyncRetVal[std::string(outn)] = what
-#define GetAsyncObj(type,name) type *name=(type*)asyncQueue[id]
-#define CreateAsyncCallLua(data)\
-	GetClosestFreeItem(&asyncQueueIdx);\
-	data->id=asyncQueueIdx;\
-	data->finished=false;\
-	data->executing=false;\
-	asyncQueue.push_back(data);\
-	SetEvent(gEvent);\
-	return pH->EndFunction(asyncQueueIdx)
-#define CreateAsyncCall(data)\
-	GetClosestFreeItem(asyncQueue,&asyncQueueIdx);\
-	data->id=asyncQueueIdx;\
-	data->finished=false;\
-	data->executing=false;\
-	SetEvent(gEvent);\
-	asyncQueue[asyncQueueIdx]=data
 
 struct ConnectStruct : public AsyncData {
 	char *host;
@@ -142,6 +125,7 @@ struct ConnectStruct : public AsyncData {
 		AsyncConnect(this->id, (AsyncData*)this);
 	}
 };
+
 struct DownloadMapStruct : public AsyncData {
 	const char *mapn;
 	const char *mapdl;
@@ -187,45 +171,32 @@ struct DownloadMapStruct : public AsyncData {
 		time_t tn = time(0);
 		extern PFNDOWNLOADMAP pfnDownloadMap;
 		if ((tn - t)>1) {
-			if (!pfnDownloadMap) {
-				DWORD pid = GetProcessId(hProcess);
-				HWND hWnd = 0;
-				if (pid && (hWnd = GetHwnd(pid))) {
-					char *buffer = new char[256];
-					if (buffer) {
-						memset(buffer, 0, 256);
-						int n = GetWindowTextA(hWnd, buffer, 256);
-						ToggleLoading(n ? buffer : "Starting map download", true, !ann);
-						delete[] buffer;
-					}
-					else ToggleLoading("Downloading map", true, !ann);
-				}
-				else ToggleLoading("Downloading map", true);
-				ann = true;
-			} else {
-				const char *msg = 0;
-				extern Atomic<const char*> mapDlMessage;
-				mapDlMessage.get(msg);
-				if (msg) {
-					ToggleLoading(msg, true, !ann);
-				} else ToggleLoading("Downloading map", true);
-				ann = true;
-			}
+			CryLogAlways("DownloadMap: Progress");
+			const char *msg = 0;
+			extern Atomic<const char*> mapDlMessage;
+			mapDlMessage.get(msg);
+			if (msg) {
+				ToggleLoading(msg, true, !ann);
+			} else ToggleLoading("Downloading map", true);
+			ann = true;
 			t = tn;
 		}
 	}
 	virtual void postExec() {
 		extern IGameFramework *pGameFramework;
+		//CryLogAlways("DownloadMap: postExec");
 		ILevelSystem *pLevelSystem = pGameFramework->GetILevelSystem();
 		if (pLevelSystem) {
 			pLevelSystem->Rescan();
 		}
+		CryLogAlways("Done");
 		ToggleLoading("Downloading map", false);
 	}
 	virtual void exec() {
 		AsyncDownloadMap(this->id, (AsyncData*)this);
 	}
 };
+
 struct RPCEvent : public AsyncData {
 	std::vector<std::string> arguments;
 	RPCEvent(std::vector<std::string>& args) {
@@ -242,4 +213,3 @@ struct RPCEvent : public AsyncData {
 		}
 	}
 };
-#pragma endregion

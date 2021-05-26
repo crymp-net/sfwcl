@@ -146,7 +146,7 @@ function HandleFSCommand(cmd, args)
 	--printf("HandleFSCommand(%s, %s)", cmd or "<unknown>", args or "<unknown>")
 	if cmd=="JoinServer" then
 		joiningServer = true;
-	else
+	elseif cmd == "LoadingCanceled" then
 		if joiningServer then
 			if downloadingMap then
 				CPPAPI.CancelDownload()

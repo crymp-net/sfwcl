@@ -54,8 +54,15 @@ namespace Network{
 			InternetSetOption(hConnect, INTERNET_OPTION_CONNECT_TIMEOUT, &timeo, sizeof timeo);
 
 
-			HINTERNET hRequest = HttpOpenRequest(hConnect, method == INetPost ? "POST" : "GET",
-				(script+(method==INetGet?std::string("?"+params):std::string(""))).c_str(), NULL, NULL, accept, https?INTERNET_FLAG_SECURE:0, 1);
+			HINTERNET hRequest = HttpOpenRequest(
+				hConnect,
+				method == INetPost ? "POST" : "GET",
+				(script+(method==INetGet?std::string("?"+params):std::string(""))).c_str(),
+				NULL, NULL,
+				accept,
+				(https?INTERNET_FLAG_SECURE:0)|INTERNET_FLAG_DONT_CACHE,
+				1
+			);
 			BOOL res = HttpSendRequest(hRequest, headers, (DWORD)strlen(headers), (void*)form, (DWORD)strlen(form));
 			std::stringstream ss;
 			if (res) {

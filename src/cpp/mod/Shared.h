@@ -2,7 +2,7 @@
 
 #define OFFICIAL_BUILD
 //comment for release builds
-//#define PRERELEASE_BUILD
+#define PRERELEASE_BUILD
 //if enabled, mutexes will be used to ensure safe threading
 #define THREAD_SAFE		
 //if enabled, OnUpdate will be called in Lua only when async event finishes instead of every frame

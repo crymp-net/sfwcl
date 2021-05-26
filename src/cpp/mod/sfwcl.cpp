@@ -1,3 +1,4 @@
+#include "blockingconcurrentqueue.h"
 #include "Shared.h"
 #include <stdio.h>
 #include <string.h>
@@ -48,6 +49,8 @@ IFlashPlayer *pFlashPlayer=0;
 RPC *rpc = 0;
 //AsyncData *asyncQueue[MAX_ASYNC_QUEUE+1];
 std::list<AsyncData*> asyncQueue;
+moodycamel::BlockingConcurrentQueue<AsyncData*> asyncRequestQueue;
+moodycamel::BlockingConcurrentQueue<AsyncData*> asyncResponseQueue;
 Atomic<const char*> mapDlMessage(0);
 std::map<std::string, std::string> asyncRetVal;
 int asyncQueueIdx = 0;
@@ -151,37 +154,22 @@ void OnUpdate(float frameTime) {
 		InitGameObjects();
 	}
 
-	for (std::list<AsyncData*>::iterator it = asyncQueue.begin(); g_objectsInQueue && it != asyncQueue.end(); it++) {
+	AsyncData* obj;
+	std::vector<AsyncData*> queue_back;
+	while (asyncResponseQueue.try_dequeue(obj)) {
 		g_mutex.Lock();
-		AsyncData *obj = *it;
-		if (obj) {
-			if (obj->finished) {
-				try {
-					obj->postExec();
-				}
-				catch (std::exception& ex) {
-					printf("postfn/Unhandled exception: %s", ex.what());
-				}
-				try {
-					delete obj;
-				}
-				catch (std::exception& ex) {
-					printf("delete/Unhandled exception: %s", ex.what());
-				}
-				eventFinished = true;
-				g_objectsInQueue--;
-				asyncQueue.erase(it);
-				it--;
-			} else if (obj->executing) {
-				try {
-					obj->onUpdate();
-				}
-				catch (std::exception& ex) {
-					printf("progress_func/Unhandled exception: %s", ex.what());
-				}
-			}
+		if (obj->finished) {
+			obj->postExec();
+			eventFinished = true;
+			delete obj;
+		} else if (obj->executing) {
+			obj->onUpdate();
+			queue_back.push_back(obj);
 		}
 		g_mutex.Unlock();
+	}
+	for (auto& q : queue_back) {
+		asyncResponseQueue.enqueue(q);
 	}
 	static unsigned int localCounter = 0;
 	if (eventFinished
@@ -405,6 +393,9 @@ bool Hooks::CMPHub_HandleFSCommand(const char *cmd, const char *args)
 {
 	if (pScriptSystem->BeginCall("HandleFSCommand"))
 	{
+		char dbg[100];
+		sprintf(dbg, "Handle: %s, %s", cmd, args);
+		CryLogAlways("%s", dbg);
 		if (cmd)
 			pScriptSystem->PushFuncParam(cmd);
 
@@ -555,7 +546,7 @@ extern "C" {
 		}
 	}
 	__declspec(dllexport) void* CreateGame(void* ptr){
-
+		
 #ifdef AUTO_UPDATE
 		bool needsUpdate = false;
 		std::string newestVersion = fastDownload(
@@ -603,7 +594,10 @@ extern "C" {
 		pConsole->AddCommand("cl_master",CommandClMaster,VF_RESTRICTEDMODE);
 		pConsole->AddCommand("reload_maps", CommandRldMaps, VF_RESTRICTEDMODE);
 
+		
 		InitScripts();
+
+		gEnv = pSystem->GetGlobalEnvironment();
 
 		pScriptSystem->SetGlobalValue("GAME_VER",version);
 #ifdef _WIN64

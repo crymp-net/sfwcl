@@ -37,13 +37,15 @@ CPPAPI::CPPAPI(ISystem *pSystem, IGameFramework *pGameFramework)
 {
 	Init(m_pSS, m_pSystem);
 	gEvent=CreateEvent(0,0,0,0);
-	thread=CreateThread(0,0,(LPTHREAD_START_ROUTINE)AsyncThread,0,0,0);
+	threads.push_back(CreateThread(0, 0, (LPTHREAD_START_ROUTINE)AsyncThread, 0, 0, 0));
+	threads.push_back(CreateThread(0, 0, (LPTHREAD_START_ROUTINE)AsyncThread, 0, 0, 0));
 	SetGlobalName("CPPAPI");
 	RegisterMethods();
 }
 CPPAPI::~CPPAPI(){
-	if(thread)
-		TerminateThread(thread,0);
+	for (auto& thread : threads) {
+		TerminateThread(thread, 0);
+	}
 }
 void CPPAPI::RegisterMethods(){
 #undef SCRIPT_REG_CLASSNAME
@@ -90,8 +92,12 @@ int CPPAPI::InitRPC(IFunctionHandler *pH, const char *ip, int port) {
 	sscanf(ip, "%d.%d.%d.%d", &a, &b, &c, &d);
 	unsigned long i = (a << 24) | (b << 16) | (c << 8) | d;
 	extern RPC *rpc;
-	rpc->establish(i, port & 0xFFFF);
-	return pH->EndFunction(rpc->active);
+	if (rpc) {
+		rpc->establish(i, port & 0xFFFF);
+		return pH->EndFunction(rpc->active);
+	} else {
+		return pH->EndFunction(false);
+	}
 }
 int CPPAPI::SHA256(IFunctionHandler *pH, const char *text) {
 	unsigned char digest[32];
@@ -345,7 +351,7 @@ int CPPAPI::AsyncConnectWebsite(IFunctionHandler* pH, char * host, char * page, 
 	return pH->EndFunction();
 }
 int CPPAPI::AsyncDownloadMap(IFunctionHandler* pH, const char *path, const char *link) {
-	DownloadMapStruct *now = new DownloadMapStruct;
+	DownloadMapStruct *now = new DownloadMapStruct();
 	if (now) {
 		now->mapdl = link;
 		now->mapn = path;
@@ -437,39 +443,10 @@ bool DownloadMapFromObject(DownloadMapStruct *now) {
 		extern Atomic<const char*> mapDlMessage;
 		mapDlMessage.set(0);
 		int code = pfnDownloadMap(mapn, mapdl, cwd);
+		//sprintf(cwd, "Error: %d (%x)", code, code);
+		//MessageBoxA(0, cwd, 0, 0);
+		//CryLogAlways("Download error: %x", code);
 		if (code) ret = false;
-	} else {
-		sprintf_s(params, "\"%s\" \"%s\" \"%s\"", mapn, mapdl, cwd);
-		SHELLEXECUTEINFOA info;
-		ZeroMemory(&info, sizeof(SHELLEXECUTEINFOA));
-		info.lpDirectory = cwd;
-		info.lpParameters = params;
-		extern bool g_gameFilesWritable;
-		///TODO: if g_gameFilesWritable -> MapDownloader.exe; else -> MapDownloaderUAC.exe
-		info.lpFile = "MapDownloader.exe";
-		if (now->isAsync)
-			info.nShow = SW_HIDE;
-		else info.nShow = SW_SHOW;
-		info.cbSize = sizeof(SHELLEXECUTEINFOA);
-		info.fMask = SEE_MASK_NOCLOSEPROCESS;
-		info.hwnd = 0;
-		//MessageBoxA(0,cwd,0,0);
-		if (!ShellExecuteExA(&info)) {
-			printf("\nFailed to start map downloader, error code %d\n", GetLastError());
-			while (getchar() != '\n') {}
-			return false;
-		}
-		now->hProcess = info.hProcess;
-
-		WaitForSingleObject(info.hProcess, INFINITE);
-		DWORD exitCode;
-		ret = true;
-		if (GetExitCodeProcess(info.hProcess, &exitCode)) {
-			if (exitCode != 0) {
-				printf("\nFailed to download map, error code: %d\n", (int)exitCode);
-				ret = false;
-			}
-		}
 	}
 	if (!now->isAsync) {
 		ILevelSystem *pLevelSystem = pGameFramework->GetILevelSystem();
@@ -510,30 +487,25 @@ bool AsyncDownloadMap(int id, AsyncData *obj) {
 	return false;
 }
 static void AsyncThread(){
-	extern Mutex g_mutex;
+	extern Mutex g_mutex; 
+	extern moodycamel::BlockingConcurrentQueue<AsyncData*> asyncRequestQueue;
+	extern moodycamel::BlockingConcurrentQueue<AsyncData*> asyncResponseQueue;
 	WSADATA data;
 	WSAStartup(0x202, &data);
 	while(true){
-		WaitForSingleObject(gEvent,INFINITE);
-		if(asyncQueue.size()){
-			for (std::list<AsyncData*>::iterator it = asyncQueue.begin(); it != asyncQueue.end();it++) {
-				g_mutex.Lock();
-				AsyncData *obj = *it;
-				if(obj && !obj->finished){
-					obj->executing = true;
-					g_mutex.Unlock();
-					try {
-						obj->exec();
-					} catch (std::exception& ex) {
-						printf("func/Unhandled exception: %s\n", ex.what());
-					}
-					g_mutex.Lock();
-					obj->finished=true;
-				}
-				g_mutex.Unlock();
-			}
+		AsyncData* obj = 0;
+		asyncRequestQueue.wait_dequeue(obj);
+		g_mutex.Lock();
+		if(obj && !obj->finished){
+			obj->executing = true;
+			obj->finished = false;
+			asyncResponseQueue.enqueue(obj);
+			g_mutex.Unlock();
+			obj->exec();
+			g_mutex.Lock();
+			obj->finished=true;
 		}
-		ResetEvent(gEvent);
+		g_mutex.Unlock();
 	}
 	WSACleanup();
 }
