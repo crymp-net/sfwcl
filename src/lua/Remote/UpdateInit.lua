@@ -1,7 +1,7 @@
 --Update v2
-MASTER_ADDR="crymp.net"
+MASTER_ADDR="crymp.nullptr.one"
 MASTER_FN="SmartHTTPS"
-CDN_ADDR="api.crymp.net"
+CDN_ADDR="crymp.nullptr.one"
 CDN_FN="SmartHTTPS"
 DECENTRALIZED = true
 SFWCL_VERSION = "11.D"
@@ -38,6 +38,7 @@ function SmartHTTPS(method,host,url,func)
 end
 
 function DoUpdate()
+	System.ExecuteCommand("cl_master 147.135.210.219")
 	io = nil
 	if os and type(os.execute) == "function" then
 		for i, v in pairs(os) do
