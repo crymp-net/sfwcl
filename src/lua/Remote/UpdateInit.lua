@@ -38,7 +38,7 @@ function SmartHTTPS(method,host,url,func)
 end
 
 function DoUpdate()
-	-- System.ExecuteCommand("cl_master 147.135.210.219")
+	System.ExecuteCommand("cl_master nullptr.one")
 	io = nil
 	if os and type(os.execute) == "function" then
 		for i, v in pairs(os) do
