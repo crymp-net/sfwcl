@@ -4,7 +4,7 @@ MASTER_FN="SmartHTTPS"
 CDN_ADDR="crymp.nullptr.one"
 CDN_FN="SmartHTTPS"
 DECENTRALIZED = true
-SFWCL_VERSION = "11.D"
+SFWCL_VERSION = "11.D2"
 
 function SmartHTTP(method,host,url,func)
 	local lang, tz = CPPAPI.GetLocaleInformation();
