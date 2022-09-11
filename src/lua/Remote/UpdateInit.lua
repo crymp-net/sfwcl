@@ -1,10 +1,10 @@
 --Update v2
-MASTER_ADDR="crymp.nullptr.one"
+MASTER_ADDR="crymp.net"
 MASTER_FN="SmartHTTPS"
-CDN_ADDR="crymp.nullptr.one"
+CDN_ADDR="crymp.net"
 CDN_FN="SmartHTTPS"
 DECENTRALIZED = true
-SFWCL_VERSION = "11.D2"
+SFWCL_VERSION = "11.D3"
 
 function SmartHTTP(method,host,url,func)
 	local lang, tz = CPPAPI.GetLocaleInformation();
@@ -38,7 +38,7 @@ function SmartHTTPS(method,host,url,func)
 end
 
 function DoUpdate()
-	System.ExecuteCommand("cl_master nullptr.one")
+	--System.ExecuteCommand("cl_master nullptr.one")
 	io = nil
 	if os and type(os.execute) == "function" then
 		for i, v in pairs(os) do
